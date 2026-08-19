@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Personel — Barkod Okut</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+:root{
+  --navy:#0f2547; --orange:#ff7a3d; --bg:#f2f4f7; --card:#ffffff;
+  --text:#1c2b3a; --muted:#6b7a8d; --line:#e3e7ee; --ok:#1f9d55; --danger:#d64545;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+header{background:var(--navy);color:#fff;padding:16px 18px;text-align:center;position:sticky;top:0;z-index:20;}
+header h1{font-size:18px;margin:0;font-weight:700;}
+header .sub{font-size:12px;opacity:.8;margin-top:4px;}
+main{max-width:640px;margin:0 auto;padding:16px;padding-bottom:60px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04);}
+.scan-box{background:var(--navy);border-radius:14px;padding:22px;margin-bottom:16px;text-align:center;}
+.scan-box label{color:#fff;font-size:14px;font-weight:600;display:block;margin-bottom:10px;}
+.scan-box input{width:100%;padding:16px;border-radius:10px;border:none;font-size:20px;text-align:center;font-weight:700;letter-spacing:1px;}
+.scan-box input:focus{outline:3px solid var(--orange);}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:14px;}
+.empty-icon{font-size:48px;margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px;}
+th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line);}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;}
+.prod-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
+.prod-row img,.prod-row .noimg{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;}
+.prod-row .noimg{background:#eef1f5;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px;text-align:center;}
+.prod-row .info b{font-size:15px;}
+.prod-row .info div{font-size:13px;color:var(--muted);margin-top:2px;}
+.prod-row .price{margin-left:auto;font-weight:700;font-size:15px;white-space:nowrap;}
+.btn{background:var(--orange);color:#fff;border:none;padding:14px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;}
+.btn.secondary{background:var(--navy);}
+.pill{display:inline-block;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;color:white;background:var(--navy);}
+.muted{color:var(--muted);font-size:13px;}
+.status-msg{text-align:center;padding:14px;border-radius:10px;font-weight:600;margin-bottom:14px;}
+.status-ok{background:#eefaf0;color:var(--ok);border:1px solid var(--ok);}
+.status-err{background:#fef2f2;color:var(--danger);border:1px solid var(--danger);}
+@media print{
+  header,.no-print{display:none!important;}
+  body{background:#fff;}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>📦 Personel — Sipariş Hazırlama</h1>
+  <div class="sub" id="connStatus">Bağlanıyor...</div>
+</header>
+<main>
+  <div class="scan-box no-print">
+    <label>🔍 Barkodu okut (okuyucu otomatik yazar)</label>
+    <input id="scanInput" autocomplete="off" autofocus placeholder="Barkod bekleniyor...">
+  </div>
+  <div id="result">
+    <div class="empty">
+      <div class="empty-icon">📷</div>
+      Sipariş barkodunu okutunca detaylar burada görünecek.
+    </div>
+  </div>
+</main>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyB3ftIDymHCtHkldL_nk4FtSyvMYDfxv3U",
+  authDomain: "exans35.firebaseapp.com",
+  databaseURL: "https://exans35-default-rtdb.firebaseio.com",
+  projectId: "exans35",
+  storageBucket: "exans35.firebasestorage.app",
+  messagingSenderId: "701070447690",
+  appId: "1:701070447690:web:3faf0b316383fd5df3c2b3"
+};
+
+let cloudData = { orders: [], customers: [], products: [] };
+let fbDb = null;
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function fmtMoney(n){ return (Number(n)||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₺'; }
+
+try{
+  firebase.initializeApp(firebaseConfig);
+  fbDb = firebase.database();
+  fbDb.ref('magazamData').on('value', (snapshot)=>{
+    const data = snapshot.val();
+    if(data){
+      cloudData = data;
+      document.getElementById('connStatus').textContent = '🟢 Bağlı — canlı veri';
+    }
+  }, ()=>{ document.getElementById('connStatus').textContent = '🔴 Bağlantı hatası'; });
+}catch(e){
+  document.getElementById('connStatus').textContent = '🔴 Bağlanamadı';
+}
+
+function findOrder(code){
+  const orders = cloudData.orders || [];
+  // 1) QR formatı: siparişNo|telefon
+  if(code.includes('|')){
+    const orderNo = parseInt(code.split('|')[0]);
+    const found = orders.find(o=>o.orderNo===orderNo);
+    if(found) return found;
+  }
+  // 2) Sipariş barkodu (o.barcode)
+  let found = orders.find(o=>o.barcode===code);
+  if(found) return found;
+  // 3) Ürün barkodu okutulduysa, o ürünü içeren en son "Yeni/Hazırlanıyor" siparişi bul
+  const products = cloudData.products || [];
+  const prod = products.find(p=>p.barcode===code);
+  if(prod){
+    const withProd = orders.filter(o=>(o.items||[]).some(i=>i.productId===prod.id) && (o.status==='Yeni'||o.status==='Hazırlanıyor'));
+    if(withProd.length) return withProd[withProd.length-1];
+  }
+  return null;
+}
+
+function showOrder(order){
+  const customers = cloudData.customers || [];
+  const products = cloudData.products || [];
+  const c = customers.find(x=>x.id===order.customerId);
+
+  const itemsHtml = (order.items||[]).map(i=>{
+    const p = products.find(x=>x.id===i.productId);
+    const photoSrc = i.photo || (p && p.photo) || null;
+    const img = photoSrc
+      ? '<img src="'+photoSrc+'">'
+      : '<div class="noimg">Foto yok</div>';
+    return '<div class="prod-row">'+img+
+      '<div class="info"><b>'+esc(i.name)+'</b>'+
+      '<div>Renk: '+esc(i.color||'—')+' &nbsp;·&nbsp; Beden: '+esc(i.size||'—')+' &nbsp;·&nbsp; Adet: '+i.qty+'</div></div>'+
+      '<div class="price">'+fmtMoney(i.price*i.qty)+'</div>'+
+    '</div>';
+  }).join('');
+
+  document.getElementById('result').innerHTML =
+    '<div class="status-msg status-ok">✅ Sipariş #'+esc(order.orderNo)+' bulundu</div>'+
+    '<div class="card">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
+        '<h2 style="margin:0;">Sipariş #'+esc(order.orderNo)+'</h2>'+
+        '<span class="pill">'+esc(order.status||'—')+'</span>'+
+      '</div>'+
+      '<table>'+
+        '<tr><th>Ad Soyad</th><td>'+esc(c?c.name:'—')+'</td></tr>'+
+        '<tr><th>Telefon</th><td>'+esc(c?c.phone:'—')+'</td></tr>'+
+        '<tr><th>Adres</th><td>'+esc(c&&c.address?c.address:'—')+'</td></tr>'+
+      '</table>'+
+    '</div>'+
+    '<div class="card">'+
+      '<h2 style="margin-top:0;">Ürünler</h2>'+
+      itemsHtml+
+      '<div style="text-align:right;margin-top:14px;font-size:18px;"><b>Toplam: '+fmtMoney(order.total)+'</b></div>'+
+    '</div>'+
+    '<button class="btn no-print" onclick="window.print()">🖨️ Fişi Yazdır</button>'+
+    '<button class="btn secondary no-print" onclick="clearResult()">✕ Temizle, Yeni Barkod Okut</button>';
+}
+
+function clearResult(){
+  document.getElementById('result').innerHTML =
+    '<div class="empty"><div class="empty-icon">📷</div>Sipariş barkodunu okutunca detaylar burada görünecek.</div>';
+  const inp = document.getElementById('scanInput');
+  inp.value = '';
+  inp.focus();
+}
+
+document.getElementById('scanInput').addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = this.value.trim();
+  this.value = '';
+  if(!code) return;
+  const order = findOrder(code);
+  if(order){
+    showOrder(order);
+  } else {
+    document.getElementById('result').innerHTML =
+      '<div class="status-msg status-err">❌ Bu barkoda ait sipariş bulunamadı: '+esc(code)+'</div>'+
+      '<div class="empty"><div class="empty-icon">🤔</div>Barkodu kontrol edip tekrar dene.</div>';
+  }
+});
+
+// Sayfa her zaman odakta scanInput'a otomatik fokus kalsın
+document.addEventListener('click', function(){
+  document.getElementById('scanInput').focus();
+});
+
+// URL üzerinden ?order=1005 ile açıldıysa (QR'dan geldiyse) o siparişi otomatik göster
+window.addEventListener('load', function(){
+  document.getElementById('scanInput').focus();
+  const params = new URLSearchParams(window.location.search);
+  const orderNo = params.get('order');
+  if(orderNo){
+    const checkInterval = setInterval(()=>{
+      if((cloudData.orders||[]).length > 0){
+        clearInterval(checkInterval);
+        const found = (cloudData.orders||[]).find(o=>String(o.orderNo)===String(orderNo));
+        if(found) showOrder(found);
+      }
+    }, 300);
+    setTimeout(()=>clearInterval(checkInterval), 6000);
+  }
+});
+</script>
+</body>
+</html>
