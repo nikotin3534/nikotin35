@@ -2,6 +2,9 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Sipariş &amp; Stok Yönetimi</title>
 <link rel="manifest" href="manifest.json">
@@ -12,6 +15,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mağazam">
 <link rel="icon" href="icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -284,6 +289,47 @@ function fmtDate(d){ const dt=new Date(d); return dt.toLocaleDateString('tr-TR')
 function todayISO(){ return new Date().toISOString(); }
 
 /* ================= PERSISTENCE ================= */
+/* ---- FIREBASE GERÇEK BULUT SENKRONİZASYONU ---- */
+const firebaseConfig = {
+  apiKey: "AIzaSyB3ftIDymHCtHkldL_nk4FtSyvMYDfxv3U",
+  authDomain: "exans35.firebaseapp.com",
+  databaseURL: "https://exans35-default-rtdb.firebaseio.com",
+  projectId: "exans35",
+  storageBucket: "exans35.firebasestorage.app",
+  messagingSenderId: "701070447690",
+  appId: "1:701070447690:web:3faf0b316383fd5df3c2b3"
+};
+let fbDb = null, fbReady = false, fbApplyingRemote = false, fbSaveTimer = null;
+try{
+  if(typeof firebase !== 'undefined'){
+    firebase.initializeApp(firebaseConfig);
+    fbDb = firebase.database();
+    fbReady = true;
+  }
+}catch(e){ console.error('Firebase başlatılamadı:', e); }
+
+function fbListenForChanges(){
+  if(!fbReady) return;
+  fbDb.ref('magazamData').on('value', (snapshot)=>{
+    const data = snapshot.val();
+    if(data){
+      fbApplyingRemote = true;
+      state = Object.assign(state, data);
+      try{ localStorage.setItem('siparis-app-data', JSON.stringify(state)); }catch(e){}
+      if(typeof renderNav==='function') renderNav();
+      if(typeof renderMain==='function') renderMain();
+      fbApplyingRemote = false;
+    }
+  }, (err)=>{ console.error('Firebase dinleme hatası:', err); });
+}
+function fbPushState(){
+  if(!fbReady || fbApplyingRemote) return;
+  clearTimeout(fbSaveTimer);
+  fbSaveTimer = setTimeout(()=>{
+    fbDb.ref('magazamData').set(state).catch(e=>console.error('Firebase kayıt hatası:', e));
+  }, 700);
+}
+
 async function loadState(){
   try{
     const r = await window.storage.get('app-data', false);
@@ -292,6 +338,20 @@ async function loadState(){
     const local = localStorage.getItem('siparis-app-data');
     if(local){ try{ state = Object.assign(state, JSON.parse(local)); }catch(_){} }
   }
+  
+  // Firebase'den gerçek bulut verisini çek (varsa üzerine yazar - tüm cihazlar aynı veriyi görsün)
+  // ÖNEMLİ: Bazı ortamlarda (örn. kısıtlı önizleme pencereleri) Firebase bağlantısı hiç yanıt vermeyebilir.
+  // Bu yüzden en fazla 4 saniye bekleriz, sonra ne olursa olsun devam ederiz - uygulama asla sonsuza dek takılı kalmaz.
+  if(fbReady){
+    try{
+      const timeoutPromise = new Promise((resolve)=>setTimeout(()=>resolve(null), 4000));
+      const snap = await Promise.race([fbDb.ref('magazamData').once('value'), timeoutPromise]);
+      const cloudData = snap ? snap.val() : null;
+      if(cloudData){ state = Object.assign(state, cloudData); }
+    }catch(e){ console.error('Firebase okuma hatası:', e); }
+    try{ fbListenForChanges(); }catch(e){ console.error('Firebase dinleme kurulamadı:', e); }
+  }
+  
   migrateIadeKargoUcreti();
   migrateGidenKargoUcreti();
 }
@@ -333,6 +393,8 @@ function saveState(){
     }
     return;
   }
+  // Firebase'e de kaydet (gerçek bulut senkronizasyonu - tüm cihazlar/tarayıcılar aynı veriyi görsün)
+  fbPushState();
 }
 
 /* ================= GİRİŞ/ÇIKIŞ ================= */
@@ -6338,7 +6400,12 @@ function restoreFullBackup(input){
 
 function viewSettings(){
   const userId = localStorage.getItem('app-user-id') || '—';
-  return '<div class="card"><h2>Mağaza Bilgisi</h2>'+
+  return '<div class="card" style="background:'+(fbReady?'#eefaf0':'#fff3e0')+';border:3px solid '+(fbReady?'var(--ok)':'#FF9800')+';">'+
+    '<h2>'+(fbReady?'🟢 GERÇEK ZAMANLI SENKRONİZASYON — AKTİF':'⚠️ GERÇEK ZAMANLI SENKRONİZASYON — BAĞLI DEĞİL')+'</h2>'+
+    '<p class="muted">'+(fbReady?'Bu, sayfanın DAHA ALTINDAKİ eski "yedekleme" kartından FARKLI bir şeydir. Bu kutu yeşilse: bu cihazda yaptığın her değişiklik otomatik olarak buluta kaydediliyor. Başka bir tarayıcı/cihazdan aynı linki açtığında AYNI verileri göreceksin.':'Firebase bağlantısı kurulamadı, veriler sadece bu tarayıcıda saklanıyor.')+'</p>'+
+    '<p style="font-size:11px;color:#999;margin-top:8px;">Kod Versiyonu: v2026-08-20-QR-URL-FIX</p>'+
+  '</div>'+
+  '<div class="card"><h2>Mağaza Bilgisi</h2>'+
     '<div><label>Mağaza Adı</label><input id="s_shopname" value="'+esc(state.shopName)+'"></div>'+
     '<button class="btn" style="margin-top:10px;" onclick="saveShopName()">Kaydet</button>'+
     '</div>'+
@@ -6360,8 +6427,8 @@ function viewSettings(){
     '</div>'+
     '</div>'+
     '<div class="card" style="background:#eefaf0;border-color:var(--ok);">'+
-    '<h2>☁️ Bulut Senkronizasyonu (Firebase)</h2>'+
-    '<p class="muted">Verileriniz otomatik olarak Google Firebase\'e kaydediliyor. Cihazınız kaybolursa veya sorun olursa e-posta ile geri yükleyin.</p>'+
+    '<h2>☁️ Google Hesabıyla Yedekleme</h2>'+
+    '<p class="muted">Bu, yukarıdaki gerçek bulut senkronizasyonundan (sayfanın en üstünde) FARKLI bir ek yedekleme yöntemidir.</p>'+
     '<div><label>Hesap E-postası</label><input id="s_firebase_email" type="email" placeholder="ornek@gmail.com"></div>'+
     '<div class="row-flex" style="gap:8px;margin-top:10px;">'+
       '<button class="btn secondary" onclick="manualBackupToFirebase()">Manuel Yedekle</button>'+
@@ -6664,15 +6731,23 @@ async function init(){
   renderMain();
   
   // QR kod ile URL üzerinden gelindiyse (örn: ...html?order=1042) o siparişi otomatik aç
+  // Bulut verisi (Firebase) geç gelebileceği için birkaç kez tekrar dener (toplam ~8 saniye)
   const urlParams = new URLSearchParams(window.location.search);
   const orderNoParam = urlParams.get('order');
   if(orderNoParam){
-    const order = state.orders.find(o => String(o.orderNo) === String(orderNoParam));
-    if(order){
-      setTimeout(()=>viewOrderDetail(order.id), 200);
-    } else {
-      toast('QR\'daki sipariş (#'+orderNoParam+') bulunamadı');
-    }
+    let denemeSayisi = 0;
+    const maxDeneme = 8;
+    const araDeneme = setInterval(()=>{
+      denemeSayisi++;
+      const order = state.orders.find(o => String(o.orderNo) === String(orderNoParam));
+      if(order){
+        clearInterval(araDeneme);
+        viewOrderDetail(order.id);
+      } else if(denemeSayisi >= maxDeneme){
+        clearInterval(araDeneme);
+        toast('QR\'daki sipariş (#'+orderNoParam+') bulunamadı');
+      }
+    }, 1000);
   }
 }
 init();
