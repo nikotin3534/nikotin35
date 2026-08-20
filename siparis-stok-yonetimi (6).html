@@ -2,6 +2,9 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Sipariş &amp; Stok Yönetimi</title>
 <link rel="manifest" href="manifest.json">
@@ -14,6 +17,7 @@
 <link rel="icon" href="icon-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -84,24 +88,31 @@ a.linklike{color:#1a5fb4;text-decoration:underline;cursor:pointer;}
 .print-only{display:none;}
 .receipt{border:1px dashed #333;padding:16px;font-family:monospace;font-size:13px;}
 .label-box{border:1px solid #000;padding:8px;width:220px;display:inline-block;margin:4px;text-align:center;font-size:11px;}
-.ship-doc{width:100%;max-width:680px;color:#000;}
-.ship-top{display:flex;border:1px solid #000;flex-wrap:wrap;}
-.ship-recipient{flex:1 1 260px;padding:16px;border-right:1px solid #000;}
-.ship-barcode-box{flex:1 1 200px;padding:16px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.ship-doc h3{margin:0 0 12px;font-size:17px;}
+.ship-doc{width:100%;max-width:680px;color:#000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+.ship-header{display:flex;justify-content:center;align-items:center;margin-bottom:20px;}
+.ship-logo{text-align:center;line-height:1;}
+.ship-logo .ex{font-size:44px;font-weight:900;color:#111;letter-spacing:-2px;font-family:Georgia,'Arial Black',sans-serif;font-style:italic;}
+.ship-logo .ans{font-size:12px;font-weight:700;color:#E8442C;letter-spacing:6px;margin-top:2px;padding-left:4px;}
+.ship-top{display:flex;gap:14px;flex-wrap:wrap;}
+.ship-recipient{flex:1 1 300px;padding:18px;border:1px solid #ddd;border-radius:14px;}
+.ship-barcode-box{flex:1 1 220px;padding:18px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #ddd;border-radius:14px;}
+.ship-doc h3{margin:0 0 12px;font-size:15px;font-weight:800;}
 .ship-warning{font-size:11px;margin-bottom:12px;color:#333;}
 .ship-row{display:flex;margin-bottom:8px;font-size:13px;align-items:flex-start;}
 .ship-row .ship-label{width:100px;font-weight:700;flex-shrink:0;}
 .ship-row .ship-colon{width:14px;flex-shrink:0;}
-.ship-barcode-value{margin-top:6px;font-weight:700;letter-spacing:1px;font-size:15px;}
-.ship-products{border:1px solid #000;border-top:none;padding:16px;}
-.ship-product-item{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;}
-.ship-product-num{width:30px;height:30px;border-radius:50%;border:1px solid #000;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;}
-.ship-product-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #000;flex-shrink:0;}
-.ship-product-photo-empty{width:64px;height:64px;border-radius:50%;border:1px solid #000;display:flex;align-items:center;justify-content:center;font-size:10px;color:#666;text-align:center;flex-shrink:0;}
+.ship-barcode-value{margin-top:8px;font-weight:700;letter-spacing:1px;font-size:14px;}
+.ship-products{border:1px solid #ddd;border-radius:14px;padding:18px;margin-top:14px;}
+.ship-product-item{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #eee;}
+.ship-product-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.ship-product-top{display:flex;gap:12px;align-items:flex-start;}
+.ship-product-num{width:28px;height:28px;border-radius:50%;border:1px solid #000;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:13px;}
+.ship-product-photo{width:90px;height:90px;border-radius:50%;object-fit:cover;border:1px solid #ddd;display:block;margin:14px auto 0;}
+.ship-product-photo-empty{width:90px;height:90px;border-radius:50%;border:1px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:10px;color:#666;text-align:center;margin:14px auto 0;}
 .ship-product-info b{font-size:14px;}
-.ship-product-meta{display:flex;gap:26px;font-size:12px;margin-top:6px;}
-.ship-product-meta div div:first-child{font-size:10px;color:#555;margin-bottom:2px;}
+.ship-product-meta{display:flex;gap:22px;font-size:12px;margin-top:10px;flex-wrap:wrap;}
+.ship-product-meta div div:first-child{font-size:10px;color:#777;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px;}
+.ship-product-meta div div:last-child{font-weight:700;}
 .scan-preview{display:flex;gap:12px;align-items:center;background:#fff8f2;border:1px solid var(--orange);border-radius:10px;padding:10px;margin-top:8px;}
 .scan-preview img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
 .scan-preview .scan-preview-noPhoto{width:56px;height:56px;border-radius:8px;background:#eef1f5;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px;text-align:center;flex-shrink:0;}
@@ -296,7 +307,7 @@ const firebaseConfig = {
   messagingSenderId: "701070447690",
   appId: "1:701070447690:web:3faf0b316383fd5df3c2b3"
 };
-let fbDb = null, fbReady = false, fbApplyingRemote = false, fbSaveTimer = null;
+let fbDb = null, fbReady = false, fbApplyingRemote = false, fbSaveTimer = null, fbAuthed = false;
 try{
   if(typeof firebase !== 'undefined'){
     firebase.initializeApp(firebaseConfig);
@@ -304,6 +315,19 @@ try{
     fbReady = true;
   }
 }catch(e){ console.error('Firebase başlatılamadı:', e); }
+
+// Veriye erişmeden önce anonim (görünmez, şifresiz) giriş yap - güvenlik kuralları bunu şart koşuyor
+function fbEnsureAuth(){
+  return new Promise((resolve)=>{
+    if(!fbReady){ resolve(false); return; }
+    if(fbAuthed){ resolve(true); return; }
+    firebase.auth().onAuthStateChanged((user)=>{
+      if(user){ fbAuthed = true; resolve(true); }
+    });
+    firebase.auth().signInAnonymously()
+      .catch((e)=>{ console.error('Firebase auth hatası:', e.code||e.message); resolve(false); });
+  });
+}
 
 function fbListenForChanges(){
   if(!fbReady) return;
@@ -322,7 +346,8 @@ function fbListenForChanges(){
 function fbPushState(){
   if(!fbReady || fbApplyingRemote) return;
   clearTimeout(fbSaveTimer);
-  fbSaveTimer = setTimeout(()=>{
+  fbSaveTimer = setTimeout(async ()=>{
+    await fbEnsureAuth();
     fbDb.ref('magazamData').set(state).catch(e=>console.error('Firebase kayıt hatası:', e));
   }, 700);
 }
@@ -341,6 +366,8 @@ async function loadState(){
   // Bu yüzden en fazla 4 saniye bekleriz, sonra ne olursa olsun devam ederiz - uygulama asla sonsuza dek takılı kalmaz.
   if(fbReady){
     try{
+      const authTimeout = new Promise((resolve)=>setTimeout(()=>resolve(false), 3000));
+      await Promise.race([fbEnsureAuth(), authTimeout]);
       const timeoutPromise = new Promise((resolve)=>setTimeout(()=>resolve(null), 4000));
       const snap = await Promise.race([fbDb.ref('magazamData').once('value'), timeoutPromise]);
       const cloudData = snap ? snap.val() : null;
@@ -3066,10 +3093,11 @@ function showWaOrderCreated(orderId){
     '</div>'
   );
   let qrDataWa;
-  if(window.location.protocol.startsWith('http')){
-    qrDataWa = window.location.href.split('?')[0] + '?order=' + o.orderNo;
+  if(window.location.protocol.startsWith('http') && !window.location.href.includes('claude.ai')){
+    qrDataWa = window.location.href.split('/').slice(0,-1).join('/') + '/personel.html?order=' + o.orderNo;
   } else {
-    qrDataWa = o.orderNo + '|' + (state.customers.find(c=>c.id===o.customerId)?.phone || '—');
+    // Yerelde/önizlemede test ediliyorsa bile HER ZAMAN gerçek, sabit yayın adresini kullan (rakam+telefon formatına asla düşme)
+    qrDataWa = 'https://nikotin3534.github.io/nikotin35/personel.html?order=' + o.orderNo;
   }
   new QRCode(document.getElementById('waOrderQr'), {text: qrDataWa, width:90, height:90});
 }
@@ -3815,25 +3843,32 @@ function printOrderBarcode(id){
 
   const productsHtml = o.items.map((i,idx)=>{
     const p = state.products.find(x=>x.id===i.productId);
-    const photoHtml = p&&p.photo
-      ? '<img class="ship-product-photo" src="'+p.photo+'">'
-      : '<div class="ship-product-photo-empty">Foto yok</div>';
+    const photoSrc = i.photo || (p && p.photo) || null;
+    const photoHtml = photoSrc
+      ? '<img class="ship-product-photo" src="'+photoSrc+'">'
+      : '<div class="ship-product-photo-empty">Foto<br>yok</div>';
     return '<div class="ship-product-item">'+
-      '<div class="ship-product-num">'+(idx+1)+'</div>'+
-      photoHtml+
-      '<div class="ship-product-info">'+
-        '<b>'+esc(i.name)+'</b><br>'+
-        '<span style="font-size:11px;color:#555;">Barkod: '+esc(p&&p.barcode?p.barcode:'—')+'</span>'+
-        '<div class="ship-product-meta">'+
-          '<div><div>Adet</div>'+i.qty+' Adet</div>'+
-          '<div><div>Renk</div>'+esc(i.color)+'</div>'+
-          '<div><div>Beden</div>'+esc(i.size)+'</div>'+
+      '<div class="ship-product-top">'+
+        '<div class="ship-product-num">'+(idx+1)+'</div>'+
+        '<div class="ship-product-info">'+
+          '<b>'+esc(i.name)+'</b>'+
+          '<div class="ship-product-meta">'+
+            '<div><div>Adet</div><div>'+i.qty+' Adet</div></div>'+
+            '<div><div>Renk</div><div>'+esc(i.color||'—')+'</div></div>'+
+            '<div><div>Beden</div><div>'+esc(i.size||'—')+'</div></div>'+
+            '<div><div>Barkod</div><div>'+esc(p&&p.barcode?p.barcode:'—')+'</div></div>'+
+            '<div><div>Fiyat</div><div>'+fmtMoney(i.price*i.qty)+'</div></div>'+
+          '</div>'+
         '</div>'+
       '</div>'+
+      photoHtml+
     '</div>';
   }).join('');
 
   const docHtml = '<div class="ship-doc">'+
+    '<div class="ship-header">'+
+      '<div class="ship-logo"><div class="ex">EX</div><div class="ans">A&nbsp;&nbsp;N&nbsp;&nbsp;S</div></div>'+
+    '</div>'+
     '<div class="ship-top">'+
       '<div class="ship-recipient">'+
         '<h3>Alıcı Bilgileri</h3>'+
@@ -3844,20 +3879,10 @@ function printOrderBarcode(id){
         '<div class="ship-row"><span class="ship-label">Adres</span><span class="ship-colon">:</span><span>'+esc(c&&c.address?c.address:'—')+'</span></div>'+
       '</div>'+
       '<div class="ship-barcode-box">'+
-        '<h3>Kargo Barkodu & QR Kod</h3>'+
-        '<table style="width:100%;border-collapse:collapse;margin-top:8px;">'+
-          '<tr>'+
-            '<td style="text-align:center;padding:6px 4px;border:1px solid #ddd;width:50%;max-height:150px;overflow:hidden;">'+
-              '<div style="font-weight:600;font-size:11px;margin-bottom:4px;">Barkod</div>'+
-              '<svg id="printBarcodeSvg" style="max-width:100%;height:auto;"></svg>'+
-              '<div id="barcodeValueBox" class="ship-barcode-value" style="margin-top:2px;font-size:9px;"></div>'+
-            '</td>'+
-            '<td style="text-align:center;padding:6px 4px;border:1px solid #ddd;width:50%;max-height:150px;overflow:hidden;">'+
-              '<div style="font-weight:600;font-size:11px;margin-bottom:4px;">QR Kod</div>'+
-              '<div id="printQrCodeCanvas" style="display:flex;align-items:center;justify-content:center;min-height:90px;"></div>'+
-            '</td>'+
-          '</tr>'+
-        '</table>'+
+        '<h3>Kargo Kodu</h3>'+
+        '<svg id="printBarcodeSvg" style="max-width:220px;width:100%;height:auto;"></svg>'+
+        '<div id="barcodeValueBox" class="ship-barcode-value"></div>'+
+        '<div style="margin-top:14px;" id="printQrCodeCanvas"></div>'+
       '</div>'+
     '</div>'+
     '<div class="ship-products">'+
@@ -3873,17 +3898,19 @@ function printOrderBarcode(id){
       '<button class="btn" onclick="safePrint()">Yazdır</button>'+
     '</div>'
   );
-  const barW = safeRenderBarcode('printBarcodeSvg', o.barcode, {height:20,fontSize:7,displayValue:false});
-  renderJustifiedDigits('barcodeValueBox', o.barcode, barW);
+  const barW = safeRenderBarcode('printBarcodeSvg', o.barcode, {height:55,narrow:1.6,displayValue:false});
+  const barcodeSvgEl = document.getElementById('printBarcodeSvg');
+  const actualBarW = barcodeSvgEl ? barcodeSvgEl.getBoundingClientRect().width : barW;
+  renderJustifiedDigits('barcodeValueBox', o.barcode, actualBarW);
   
-  // QR Kod render et (gerçek URL - telefonun düz kamerasıyla da açılabilsin)
-  // Sayfa internete yüklendiyse (http/https) tam URL kullanılır; yerelde (file://) açıksa eski format geçerli kalır.
+  // QR Kod render et (gerçek URL - personel.html sayfasına gider, telefonun düz kamerasıyla da açılabilir)
+  // HER ZAMAN gerçek, sabit yayın adresi kullanılır - hiçbir ortamda "sipariş no|telefon" formatına düşülmez.
   let qrData;
-  if(window.location.protocol.startsWith('http')){
-    const baseUrl = window.location.href.split('?')[0];
-    qrData = baseUrl + '?order=' + o.orderNo;
+  if(window.location.protocol.startsWith('http') && !window.location.href.includes('claude.ai')){
+    const baseFolder = window.location.href.split('/').slice(0,-1).join('/');
+    qrData = baseFolder + '/personel.html?order=' + o.orderNo;
   } else {
-    qrData = o.orderNo + '|' + (c && c.phone ? c.phone : '—');
+    qrData = 'https://nikotin3534.github.io/nikotin35/personel.html?order=' + o.orderNo;
   }
   
   const qrContainer = document.getElementById('printQrCodeCanvas');
@@ -6400,6 +6427,7 @@ function viewSettings(){
   return '<div class="card" style="background:'+(fbReady?'#eefaf0':'#fff3e0')+';border:3px solid '+(fbReady?'var(--ok)':'#FF9800')+';">'+
     '<h2>'+(fbReady?'🟢 GERÇEK ZAMANLI SENKRONİZASYON — AKTİF':'⚠️ GERÇEK ZAMANLI SENKRONİZASYON — BAĞLI DEĞİL')+'</h2>'+
     '<p class="muted">'+(fbReady?'Bu, sayfanın DAHA ALTINDAKİ eski "yedekleme" kartından FARKLI bir şeydir. Bu kutu yeşilse: bu cihazda yaptığın her değişiklik otomatik olarak buluta kaydediliyor. Başka bir tarayıcı/cihazdan aynı linki açtığında AYNI verileri göreceksin.':'Firebase bağlantısı kurulamadı, veriler sadece bu tarayıcıda saklanıyor.')+'</p>'+
+    '<p style="font-size:11px;color:#999;margin-top:8px;">Kod Versiyonu: v2026-08-20-QR-URL-FIX</p>'+
   '</div>'+
   '<div class="card"><h2>Mağaza Bilgisi</h2>'+
     '<div><label>Mağaza Adı</label><input id="s_shopname" value="'+esc(state.shopName)+'"></div>'+
