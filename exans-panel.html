@@ -3177,10 +3177,10 @@ function showWaOrderCreated(orderId){
   );
   let qrDataWa;
   if(window.location.protocol.startsWith('http') && !window.location.href.includes('claude.ai')){
-    qrDataWa = window.location.href.split('/').slice(0,-1).join('/') + '/calisan.html?order=' + o.orderNo;
+    qrDataWa = window.location.href.split('/').slice(0,-1).join('/') + '/exans-calisan.html?order=' + o.orderNo;
   } else {
     // Yerelde/önizlemede test ediliyorsa bile HER ZAMAN gerçek, sabit yayın adresini kullan (rakam+telefon formatına asla düşme)
-    qrDataWa = 'https://nikotin3534.github.io/nikotin35/calisan.html?order=' + o.orderNo;
+    qrDataWa = 'https://nikotin3534.github.io/nikotin35/exans-calisan.html?order=' + o.orderNo;
   }
   new QRCode(document.getElementById('waOrderQr'), {text: qrDataWa, width:90, height:90});
 }
@@ -3977,14 +3977,14 @@ function renderShipDocBarcodeAndQr(o){
   const actualBarW = barcodeSvgEl ? barcodeSvgEl.getBoundingClientRect().width : barW;
   renderJustifiedDigits('barcodeValueBox', o.barcode, actualBarW);
 
-  // QR Kod render et (gerçek URL - calisan.html sayfasına gider, telefonun düz kamerasıyla da açılabilir)
+  // QR Kod render et (gerçek URL - exans-calisan.html sayfasına gider, telefonun düz kamerasıyla da açılabilir)
   // HER ZAMAN gerçek, sabit yayın adresi kullanılır - hiçbir ortamda "sipariş no|telefon" formatına düşülmez.
   let qrData;
   if(window.location.protocol.startsWith('http') && !window.location.href.includes('claude.ai')){
     const baseFolder = window.location.href.split('/').slice(0,-1).join('/');
-    qrData = baseFolder + '/calisan.html?order=' + o.orderNo;
+    qrData = baseFolder + '/exans-calisan.html?order=' + o.orderNo;
   } else {
-    qrData = 'https://nikotin3534.github.io/nikotin35/calisan.html?order=' + o.orderNo;
+    qrData = 'https://nikotin3534.github.io/nikotin35/exans-calisan.html?order=' + o.orderNo;
   }
 
   const qrContainer = document.getElementById('printQrCodeCanvas');
@@ -6222,6 +6222,8 @@ function viewOdeme(){
         });
         totalCost += (i.unitCost || 0) * i.qty;
       });
+      totalCost += (o.cargoPrice || state.kargoUcreti || 0); // Kargo ücreti sipariş başına 1 kez eklenir
+      totalCost += (o.adCostDaily || 0); // O günkü reklam bütçesinden bu siparişe düşen pay
     });
     
     const kesin = kesinItems.reduce((s,x)=>s+x.total,0);
@@ -6244,7 +6246,7 @@ function viewOdeme(){
       '</div>'+
       '<div style="padding:12px;background:#f5f5f5;border-radius:8px;font-size:12px;color:#666;">'+
         '<div>💵 Toplam Satış: <b>'+fmtMoney(kesin)+'</b></div>'+
-        '<div>📦 Toplam Maliyet: <b>'+fmtMoney(totalCost)+'</b></div>'+
+        '<div>📦 Toplam Maliyet (ürün + kargo + reklam): <b>'+fmtMoney(totalCost)+'</b></div>'+
         '<div style="border-top:1px solid #ddd;margin-top:6px;padding-top:6px;">🎯 Net Kar: <b style="color:#7C3AED;">'+fmtMoney(netKar)+'</b></div>'+
       '</div>';
     
@@ -6373,6 +6375,7 @@ function viewOdeme(){
         kesinMaliyet += (i.unitCost || 0) * i.qty;
       });
       kesinMaliyet += (o.cargoPrice || 0); // Gidiş kargo
+      kesinMaliyet += (o.adCostDaily || 0); // O günkü reklam bütçesinden bu siparişe düşen pay
     });
     
     yoldaOrders.forEach(o=>{
@@ -6380,6 +6383,7 @@ function viewOdeme(){
         tahminiMaliyet += (i.unitCost || 0) * i.qty;
       });
       tahminiMaliyet += (o.cargoPrice || 0); // Gidiş kargo
+      tahminiMaliyet += (o.adCostDaily || 0); // O günkü reklam bütçesinden bu siparişe düşen pay
     });
     
     iadeOrders.forEach(o=>{
