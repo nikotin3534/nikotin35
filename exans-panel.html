@@ -155,11 +155,18 @@ a.linklike{color:#1a5fb4;text-decoration:underline;cursor:pointer;}
 </div>
 
 <script>
-/* PWA: Service Worker kaydı - uygulama ikonuna basınca hızlı açılış ve offline destek için */
+/* ÖNEMLİ: Eski Service Worker'ı (varsa) otomatik olarak kaldır - günlerdir yaşanan
+   "güncelleme görünmüyor" sorununun asıl sebebi buydu. Bu kod, tarayıcıda kayıtlı
+   kalmış eski Service Worker'ı bulup siler, bir daha hiç kaydetmiyoruz. */
 if('serviceWorker' in navigator){
-  window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){ /* dosya sunucuda değilse sessizce geç */ });
+  navigator.serviceWorker.getRegistrations().then(function(registrations){
+    for(let reg of registrations){ reg.unregister(); }
   });
+  if('caches' in window){
+    caches.keys().then(function(names){
+      names.forEach(function(name){ caches.delete(name); });
+    });
+  }
 }
 /* ================= STATE ================= */
 let state = {
